@@ -1,6 +1,9 @@
 package storage
 
+import "github.com/alexkozopolianski/go-metrics-tpl/internal/domain"
+
 type Storage interface {
-	Gauge(metricName string, value float64)
-	Inc(metricName string)
+	Save(metricType string, metricName string, value any) error
+	Get(metricType, metricName string) (domain.Metric, bool)
+	GetAll() []domain.Metric
 }
