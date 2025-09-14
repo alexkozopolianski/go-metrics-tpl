@@ -4,63 +4,61 @@ import (
 	"strconv"
 
 	"github.com/alexkozopolianski/go-metrics-tpl/internal/domain"
+	handler "github.com/alexkozopolianski/go-metrics-tpl/internal/handlers"
 )
 
 type MemStorage struct {
 	metrics map[string]domain.Metric
 }
 
-func NewMemStorage() Storage {
+func NewMemStorage() handler.Storager {
 	return &MemStorage{metrics: make(map[string]domain.Metric)}
 }
 
 func (r *MemStorage) Save(metricType string, metricName string, value any) error {
-	existMeric, ok := r.Get(metricType, metricName)
+	existMetric, ok := r.Get(metricType, metricName)
 
 	if metricType == domain.Gauge {
 		parsedValueFloat, err := strconv.ParseFloat(value.(string), 64)
-
 		if err != nil {
 			return err
 		}
-		r.metrics[metricName] = domain.Metric{Type: metricType, Name: metricName, Value: parsedValueFloat}
+		r.metrics[metricName] = domain.Metric{Type: domain.MetricType(metricType), Name: metricName, Value: parsedValueFloat}
 		return nil
 	}
 	if metricType == domain.Counter {
 		parsedValue, err := strconv.ParseInt(value.(string), 10, 64)
-
 		if err != nil {
 			return err
 		}
-		if !ok {
-			r.metrics[metricName] = domain.Metric{Type: metricType, Name: metricName, Value: parsedValue}
-			return nil
 
+		if !ok {
+			r.metrics[metricName] = domain.Metric{Type: domain.MetricType(metricType), Name: metricName, Value: parsedValue}
+			return nil
 		} else {
-			existMeric.Value = existMeric.Value.(int64) + parsedValue
-			r.metrics[metricName] = existMeric
+			existMetric.Value = existMetric.Value.(int64) + parsedValue
+			r.metrics[metricName] = existMetric
 		}
 	}
 	return nil
 }
 
-func (r *MemStorage) Get(metricType, metricName string) (domain.Metric, bool) {
-	metric, ok := r.metrics[metricName]
-
+func (r *MemStorage) Get(metricType string, metricName string) (domain.Metric, bool) {
+	m, ok := r.metrics[metricName]
 	if !ok {
 		return domain.Metric{}, false
 	}
-	if metric.Type != metricType {
+	if m.Type != domain.MetricType(metricType) {
 		return domain.Metric{}, false
 	}
-	return metric, true
+
+	return m, true
 }
 
 func (r *MemStorage) GetAll() []domain.Metric {
 	all := make([]domain.Metric, 0, len(r.metrics))
-
-	for _, metric := range r.metrics {
-		all = append(all, metric)
+	for _, m := range r.metrics {
+		all = append(all, m)
 	}
 	return all
 }

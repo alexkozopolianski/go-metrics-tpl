@@ -1,33 +1,33 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"net/http"
-
 	handler "github.com/alexkozopolianski/go-metrics-tpl/internal/handlers"
 	"github.com/alexkozopolianski/go-metrics-tpl/internal/storage"
-	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
+
+	"github.com/alexkozopolianski/go-metrics-tpl/internal/config"
+	"github.com/alexkozopolianski/go-metrics-tpl/internal/server"
 )
 
 func main() {
-	r := chi.NewRouter()
-
-	memStorage := storage.NewMemStorage()
-	handler := handler.NewHandler(memStorage)
-
-	r.Get("/", handler.All)
-	r.Post("/update/{metricType}/{metricName}/{metricValue}", handler.Update)
-	r.Get("/value/{metricType}/{metricName}", handler.Value)
-
-	serverAddress := flag.String("a", "localhost:8080", "address")
-	flag.Parse()
-
-	fmt.Println("Server Address:", *serverAddress)
-
-	err := http.ListenAndServe(*serverAddress, r)
+	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
 
+	defer func() {
+		err := logger.Sync()
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	sugarLogger := logger.Sugar()
+
+	memStorage := storage.NewMemStorage()
+	handler := handler.NewHandler(memStorage)
+	cfg := config.GetServerConfig()
+	server := server.New(&cfg, handler, sugarLogger)
+
+	server.Run()
 }
