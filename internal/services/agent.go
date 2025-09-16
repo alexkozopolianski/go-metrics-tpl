@@ -1,3 +1,7 @@
+// Package services содержит реализацию агента для сбора и отправки метрик на сервер.
+// Agent собирает метрики из runtime, добавляет случайную метрику и счетчик PollCount,
+// и отправляет их на сервер через HTTP.
+
 package services
 
 import (
@@ -9,24 +13,29 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/Elvilius/go-musthave-metrics-tpl/internal/config"
-	"github.com/Elvilius/go-musthave-metrics-tpl/internal/models"
+	"github.com/alexkozopolianski/go-metrics-tpl/internal/config"
+	"github.com/alexkozopolianski/go-metrics-tpl/internal/models"
 )
 
+// Agent — структура агента, который собирает и отправляет метрики.
 type Agent struct {
-	cfg       config.AgentConfig
-	metrics   map[string]models.Metrics
-	pollCount int64
+	cfg       config.AgentConfig        // Конфигурация агента
+	metrics   map[string]models.Metrics // Собранные метрики
+	pollCount int64                     // Счетчик циклов сбора метрик
 }
 
+// NewAgentMetricService создает новый экземпляр агента с заданной конфигурацией.
 func NewAgentMetricService(cfg config.AgentConfig) *Agent {
 	return &Agent{cfg: cfg, metrics: make(map[string]models.Metrics), pollCount: 0}
 }
 
+// GetMetric собирает метрики из runtime и формирует map метрик.
+// Добавляет случайную метрику RandomValue и счетчик PollCount.
 func (s *Agent) GetMetric() map[string]models.Metrics {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
+	// Преобразование различных метрик из runtime.MemStats в формат models.Metrics
 	alloc := float64(memStats.Alloc)
 	s.metrics["Alloc"] = models.Metrics{ID: "Alloc", MType: models.Gauge, Value: &alloc}
 
@@ -108,9 +117,11 @@ func (s *Agent) GetMetric() map[string]models.Metrics {
 	totalAlloc := float64(memStats.TotalAlloc)
 	s.metrics["TotalAlloc"] = models.Metrics{ID: "TotalAlloc", MType: models.Gauge, Value: &totalAlloc}
 
+	// Добавление случайной метрики
 	randomValue := rand.Float64()
 	s.metrics["RandomValue"] = models.Metrics{ID: "RandomValue", MType: models.Gauge, Value: &randomValue}
 
+	// Добавление счетчика PollCount
 	pollCount := s.pollCount
 	s.metrics["PollCount"] = models.Metrics{ID: "PollCount", MType: models.Counter, Delta: &pollCount}
 
@@ -118,6 +129,7 @@ func (s *Agent) GetMetric() map[string]models.Metrics {
 	return s.metrics
 }
 
+// SendMetricByHTTP отправляет одну метрику на сервер через HTTP POST-запрос в формате JSON.
 func (s *Agent) SendMetricByHTTP(metric models.Metrics) {
 	uri := fmt.Sprintf("http://%s/update/", s.cfg.ServerAddress)
 	body, err := json.Marshal(metric)
@@ -133,6 +145,9 @@ func (s *Agent) SendMetricByHTTP(metric models.Metrics) {
 	defer res.Body.Close()
 }
 
+// Run запускает два таймера:
+// - первый собирает метрики с заданным интервалом PollInterval,
+// - второй отправляет все собранные метрики на сервер с интервалом ReportInterval.
 func (s *Agent) Run() {
 	var metrics map[string]models.Metrics
 

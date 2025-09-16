@@ -7,14 +7,20 @@ import (
 	"github.com/alexkozopolianski/go-metrics-tpl/internal/models"
 )
 
+// MemStorage реализует интерфейс хранилища метрик в оперативной памяти.
+// Метрики сохраняются в map по их ID.
 type MemStorage struct {
 	metrics map[string]models.Metrics
 }
 
+// NewMemStorage создает новое хранилище метрик в памяти.
 func NewMemStorage() handler.Storager {
 	return &MemStorage{metrics: make(map[string]models.Metrics)}
 }
 
+// Save сохраняет метрику в хранилище.
+// Для gauge просто перезаписывает значение.
+// Для counter увеличивает значение счетчика, если метрика уже существует.
 func (r *MemStorage) Save(metric models.Metrics) error {
 	mType, ID, value, delta := metric.MType, metric.ID, metric.Value, metric.Delta
 
@@ -41,6 +47,8 @@ func (r *MemStorage) Save(metric models.Metrics) error {
 	return nil
 }
 
+// Get возвращает метрику по типу и ID.
+// Если метрика не найдена или тип не совпадает — возвращает false.
 func (r *MemStorage) Get(mType string, ID string) (models.Metrics, bool) {
 	m, ok := r.metrics[ID]
 	if !ok {
@@ -53,6 +61,7 @@ func (r *MemStorage) Get(mType string, ID string) (models.Metrics, bool) {
 	return m, true
 }
 
+// GetAll возвращает срез всех метрик, хранящихся в памяти.
 func (r *MemStorage) GetAll() []models.Metrics {
 	all := make([]models.Metrics, 0, len(r.metrics))
 	for _, m := range r.metrics {
