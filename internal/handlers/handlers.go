@@ -1,3 +1,6 @@
+// Package handler реализует HTTP-обработчики для работы с метриками.
+// Обработчики принимают, сохраняют и возвращают метрики через различные HTTP-эндпоинты.
+
 package handler
 
 import (
@@ -9,20 +12,25 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// Handler — структура, инкапсулирующая хранилище метрик.
 type Handler struct {
-	storage Storager
+	storage Storager // Интерфейс хранилища метрик
 }
 
+// Storager — интерфейс для абстракции хранилища метрик.
 type Storager interface {
 	Save(metric models.Metrics) error
 	Get(mType, id string) (models.Metrics, bool)
 	GetAll() []models.Metrics
 }
 
+// NewHandler создает новый экземпляр Handler с заданным хранилищем.
 func NewHandler(storage Storager) *Handler {
 	return &Handler{storage: storage}
 }
 
+// Update — HTTP-обработчик для обновления метрики через параметры URL.
+// Поддерживает типы gauge и counter. Валидирует входные данные.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	mType := chi.URLParam(r, "type")
 	id := chi.URLParam(r, "id")
@@ -74,6 +82,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// UpdateJSON — HTTP-обработчик для обновления метрики через JSON в теле запроса.
+// Возвращает обновлённую метрику в ответе.
 func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	requestMetric := models.Metrics{}
 	err := json.NewDecoder(r.Body).Decode(&requestMetric)
@@ -113,6 +123,8 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// Value — HTTP-обработчик для получения значения метрики по типу и id через URL.
+// Возвращает значение метрики в формате JSON.
 func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	mType := chi.URLParam(r, "type")
 	id := chi.URLParam(r, "id")
@@ -146,6 +158,8 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ValueJSON — HTTP-обработчик для получения метрики через JSON-запрос.
+// Возвращает всю структуру метрики в формате JSON.
 func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	metric := models.Metrics{}
 
@@ -175,6 +189,8 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// All — HTTP-обработчик для получения всех метрик.
+// Возвращает список всех метрик в формате JSON.
 func (h *Handler) All(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
